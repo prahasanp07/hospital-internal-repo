@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { GoogleGenAI, Type } from '@google/genai';
 import { evaluateClinicalDraft } from '../services/evaluator';
+import { convertDatToVisualPlot } from '../services/waveformConverter';
 import multer from 'multer';
 import { supabase } from '../db/client';
 
@@ -25,7 +26,7 @@ router.get('/stream', (req: Request, res: Response) => {
     });
 });
 
-async function runAsyncAnalysis(imageUrl: string, jobId: string, imageBase64: string, mimeType: string) {
+async function runAsyncAnalysis(filePayloads: any[], jobId: string) {
     const projectId = process.env.GOOGLE_PROJECT_ID;
     const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
     
@@ -33,23 +34,48 @@ async function runAsyncAnalysis(imageUrl: string, jobId: string, imageBase64: st
     try {
         const ai = new GoogleGenAI({ vertexai: true, project: projectId!, location: location });
         
-        const prompt = `System: You are an expert medical AI. Analyze the image and return a JSON object with this exact schema:
+        const prompt = `System: You are an elite, board-certified clinical diagnostics and document understanding engine.
+Context: You are presented with a collection of de-identified files associated with a single clinical encounter. These may include a combination of 2D/3D radiology scans, multi-page laboratory report PDFs, or diagnostic photographs.
+Task:
+1. Consolidate and cross-examine ALL provided inputs collectively.
+2. Identify and explicitly list the anatomical locations or document titles detected across all files.
+3. Identify primary structural abnormalities, critical laboratory value flags, or diagnostic anomalies across the items.
+4. Set 'urgencyTier' to 'HIGH' if you detect critical signs (e.g., severe lab drops, tissue necrosis, hardware failures, or acute internal trauma). Otherwise, determine an accurate triage tier.
+5. Synthesize a unified, comprehensive preliminary report draft.
+Constraints:
+- Return your final analysis strictly as a raw, single, unquoted minified JSON object matching this schema exactly:
 {
-  "anatomicalLocation": "string (e.g. Chest, Knee)",
+  "anatomicalLocation": "string list or document titles summary",
   "findings": ["string"],
   "urgencyTier": "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN",
-  "draftReportText": "Detailed diagnostic report"
+  "draftReportText": "string"
 }`;
+
+        // Intercept and preprocess any .dat waveform files
+        for (const f of filePayloads) {
+            if (f.fileType === 'VOLUME_SLICE' && (f.fileUrl.endsWith('.dat') || f.mimeType === 'application/octet-stream')) {
+                try {
+                    const rawBuffer = Buffer.from(f.base64, 'base64');
+                    const plotBase64 = await convertDatToVisualPlot(rawBuffer);
+                    f.mimeType = 'image/png';
+                    f.base64 = plotBase64;
+                } catch (e) {
+                    console.error("Failed to convert .dat waveform:", e);
+                }
+            }
+        }
+
+        const parts = [
+            { text: prompt },
+            ...filePayloads.map(f => ({ inlineData: { mimeType: f.mimeType, data: f.base64 } }))
+        ];
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
             contents: [
                 {
                     role: 'user',
-                    parts: [
-                        { text: prompt },
-                        { inlineData: { mimeType: mimeType, data: imageBase64 } }
-                    ]
+                    parts: parts
                 }
             ],
             config: {
@@ -67,7 +93,7 @@ async function runAsyncAnalysis(imageUrl: string, jobId: string, imageBase64: st
              anatomicalLocation: "Unknown",
              findings: ["Could not process via AI.", String(apiError)],
              urgencyTier: "UNKNOWN",
-             draftReportText: "Error connecting to Vertex AI Gemini 3.5 Pro."
+             draftReportText: "Error connecting to Vertex AI Gemini Pro."
          };
     }
 
@@ -83,55 +109,88 @@ async function runAsyncAnalysis(imageUrl: string, jobId: string, imageBase64: st
 
 router.post('/analyze', async (req: Request, res: Response): Promise<void> => {
     try {
-        const { imageUrl, jobId, imageBase64, mimeType } = req.body;
+        const { filePayloads, jobId } = req.body;
 
-        if (!imageUrl || !jobId) {
-            res.status(400).json({ error: 'Payload must contain imageUrl and jobId.' });
+        if (!filePayloads || !jobId) {
+            res.status(400).json({ error: 'Payload must contain filePayloads and jobId.' });
             return;
         }
 
-        const evaluatedResult = await runAsyncAnalysis(imageUrl, jobId, imageBase64 || "", mimeType || "image/png");
+        const evaluatedResult = await runAsyncAnalysis(filePayloads, jobId);
         res.status(200).json(evaluatedResult);
 
     } catch (error) {
         console.error('Error in /api/triage/analyze:', error);
-        res.status(500).json({ error: 'Internal server error processing triage image' });
+        res.status(500).json({ error: 'Internal server error processing triage files' });
     }
 });
 
-router.post('/upload', upload.single('image'), async (req: Request, res: Response): Promise<void> => {
+router.post('/upload', upload.array('files'), async (req: Request, res: Response): Promise<void> => {
     try {
-        if (!req.file) {
-            res.status(400).json({ error: 'No image file provided.' });
+        const files = req.files as Express.Multer.File[];
+        if (!files || files.length === 0) {
+            res.status(400).json({ error: 'No files provided.' });
             return;
         }
 
-        const fileExt = req.file.originalname.split('.').pop();
-        const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${fileExt}`;
+        const filePayloads = [];
         
-        const { data, error: uploadError } = await supabase
-            .storage
-            .from('diagnostic_images')
-            .upload(fileName, req.file.buffer, {
-                contentType: req.file.mimetype
-            });
+        for (const file of files) {
+            const fileExt = file.originalname.split('.').pop()?.toLowerCase() || 'bin';
+            const isDat = fileExt === 'dat';
+            
+            const allowedMimeTypes = /^(image\/(jpeg|png|webp))|(application\/pdf)|(application\/dicom)$/;
+            if (!allowedMimeTypes.test(file.mimetype) && !isDat) {
+                console.error('Unsupported file type:', file.mimetype, 'ext:', fileExt);
+                continue;
+            }
 
-        if (uploadError) {
-            console.error('Supabase upload error:', uploadError);
-            res.status(500).json({ error: 'Failed to upload image.' });
+            const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${fileExt}`;
+            
+            const { error: uploadError } = await supabase
+                .storage
+                .from('diagnostic_images')
+                .upload(fileName, file.buffer, {
+                    contentType: file.mimetype
+                });
+
+            if (uploadError) {
+                console.error('Supabase upload error:', uploadError);
+                continue;
+            }
+
+            const { data: publicUrlData } = supabase
+                .storage
+                .from('diagnostic_images')
+                .getPublicUrl(fileName);
+                
+            let fileType = 'UNKNOWN';
+            if (file.mimetype === 'application/pdf') {
+                fileType = 'PDF_DOC';
+            } else if (file.mimetype.includes('dicom') || isDat) {
+                fileType = 'VOLUME_SLICE';
+            } else if (file.mimetype.startsWith('image/')) {
+                fileType = 'IMAGE';
+            }
+
+            filePayloads.push({
+                fileUrl: publicUrlData.publicUrl,
+                fileType: fileType,
+                mimeType: file.mimetype,
+                base64: file.buffer.toString('base64')
+            });
+        }
+
+        if (filePayloads.length === 0) {
+            res.status(500).json({ error: 'Failed to upload files to storage.' });
             return;
         }
 
-        const { data: publicUrlData } = supabase
-            .storage
-            .from('diagnostic_images')
-            .getPublicUrl(fileName);
-            
-        const imageUrl = publicUrlData.publicUrl;
+        const dbPayload = filePayloads.map(f => ({ fileUrl: f.fileUrl, fileType: f.fileType }));
 
         const { data: dbData, error: dbError } = await supabase
             .from('triage_jobs')
-            .insert([{ image_url: imageUrl, status: 'PENDING_AI' }])
+            .insert([{ file_payloads: dbPayload, status: 'PENDING_AI' }])
             .select('id')
             .single();
 
@@ -142,12 +201,10 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
         }
 
         const jobId = dbData.id;
-        const imageBase64 = req.file.buffer.toString('base64');
-        const mimeType = req.file.mimetype;
 
-        runAsyncAnalysis(imageUrl, jobId, imageBase64, mimeType).catch(console.error);
+        runAsyncAnalysis(filePayloads, jobId).catch(console.error);
 
-        res.status(202).json({ jobId, imageUrl, message: 'Upload successful, AI processing started.' });
+        res.status(202).json({ jobId, message: 'Upload successful, AI processing started.' });
     } catch (error) {
         console.error('Error in /upload:', error);
         res.status(500).json({ error: 'Internal server error during upload.' });

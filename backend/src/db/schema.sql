@@ -5,7 +5,7 @@ CREATE TYPE urgency_tier AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'UNKNOWN');
 -- Table: triage_jobs
 CREATE TABLE triage_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    image_url TEXT,
+    file_payloads JSONB,
     status triage_status NOT NULL DEFAULT 'PENDING_AI',
     urgency_tier urgency_tier NOT NULL DEFAULT 'UNKNOWN',
     anatomical_location TEXT,
