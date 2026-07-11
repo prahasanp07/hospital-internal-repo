@@ -29,6 +29,12 @@ import gsap from 'gsap';
               <span class="nav-text" *ngIf="!isSidebarCollapsed">EHR Scribe</span>
             </a>
           </li>
+          <li>
+            <a routerLink="/live-avatar" routerLinkActive="active" (click)="animateTransition()">
+              <span class="icon" title="Live Avatar">🧑‍⚕️</span> 
+              <span class="nav-text" *ngIf="!isSidebarCollapsed">Live Avatar</span>
+            </a>
+          </li>
         </ul>
       </nav>
       <main class="main-content" #mainContent>
@@ -136,7 +142,7 @@ import gsap from 'gsap';
 export class AppComponent implements AfterViewInit {
   title = 'frontend';
   isSidebarCollapsed = false;
-  
+
   @ViewChild('mainContent') mainContent!: ElementRef;
 
   toggleSidebar() {
@@ -153,7 +159,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   animateTransition() {
-    gsap.fromTo(this.mainContent.nativeElement, 
+    gsap.fromTo(this.mainContent.nativeElement,
       { opacity: 0, scale: 0.98 },
       { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' }
     );

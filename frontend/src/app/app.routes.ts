@@ -9,5 +9,9 @@ export const routes: Routes = [
   { 
     path: 'scribe', 
     loadComponent: () => import('./features/scribe-dashboard/scribe-dashboard.component').then(m => m.ScribeDashboardComponent) 
+  },
+  { 
+    path: 'live-avatar', 
+    loadComponent: () => import('./features/avatar-consult/avatar-consult.component').then(m => m.AvatarConsultComponent) 
   }
 ];
