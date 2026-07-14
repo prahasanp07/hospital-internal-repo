@@ -1,13 +1,32 @@
-/* You can add global styles to this file, and also import other style files */
-@import '@angular/material/prebuilt-themes/indigo-pink.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-dashboard-bg: #F0F2F9;
+    --color-glass-border: rgba(255, 255, 255, 0.4);
+    --color-glass-bg: rgba(255, 255, 255, 0.3);
+    --color-glass-blue-bg: rgba(220, 235, 255, 0.5);
+    
+    --color-primary-blue: #4A83F6;
+    --color-text-dark: #2B3654;
+    --color-text-muted: #8E9BB8;
+    --color-heart-red: #FA4F61;
+  }
+}
 
 html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  background: #0f172a;
-  color: #f1f5f9;
+  background-color: var(--color-dashboard-bg);
+  background-image: 
+    radial-gradient(circle at 10% 10%, rgba(135, 126, 242, 0.2) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(74, 131, 246, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 50% 120%, rgba(204, 153, 255, 0.2) 0%, transparent 50%);
+  color: var(--color-text-dark);
   font-family: 'Inter', 'Roboto', sans-serif;
   overflow-x: hidden;
 }
@@ -16,7 +35,42 @@ html, body {
   box-sizing: border-box;
 }
 
-/* Material Overrides for Dark/Glass theme */
+/* Glassmorphism Utilities */
+@layer components {
+  .glass-panel {
+    @apply bg-white/40 backdrop-blur-xl border border-white/50 shadow-sm rounded-3xl overflow-hidden relative;
+  }
+
+  .glass-panel-blue {
+    @apply bg-[#5892FF]/20 backdrop-blur-2xl border border-white/20 shadow-md rounded-3xl overflow-hidden relative text-white;
+  }
+
+  .glass-pill {
+    @apply bg-white/30 backdrop-blur-md border border-white/40 shadow-sm rounded-full flex items-center justify-center;
+  }
+
+  .glass-button {
+    @apply bg-white/70 hover:bg-white text-gray-800 backdrop-blur-md shadow-sm rounded-full transition-all;
+  }
+}
+
+/* Material Overrides */
 .mat-mdc-form-field-subscript-wrapper {
   display: none !important;
+}
+
+/* Custom Scrollbar for sleekness */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(142, 155, 184, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(142, 155, 184, 0.5);
 }

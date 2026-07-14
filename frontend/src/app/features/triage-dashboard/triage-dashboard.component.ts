@@ -11,39 +11,27 @@ import { ImageViewerComponent } from './image-viewer/image-viewer.component';
   standalone: true,
   imports: [CommonModule, TriageFormComponent, ImageViewerComponent],
   template: `
-    <div class="dashboard-container">
-      <div class="left-column">
-        <app-image-viewer></app-image-viewer>
+    <div class="w-full h-full flex flex-col md:flex-row gap-6 p-2">
+      <!-- Central File Upload Screen -->
+      <div class="flex-1 glass-panel flex flex-col p-6 min-h-[500px]">
+        <h2 class="text-2xl font-semibold mb-4 text-[#2B3654]">Medical Imaging Upload</h2>
+        <div class="flex-1 rounded-2xl overflow-hidden bg-white/20 border border-white/40 shadow-inner flex items-center justify-center">
+          <app-image-viewer class="w-full h-full"></app-image-viewer>
+        </div>
       </div>
-      <div class="right-column">
-        <app-triage-form [triageData]="triageData$ | async"></app-triage-form>
+
+      <!-- Right Column Results -->
+      <div class="w-full md:w-[450px] lg:w-[500px] glass-panel p-6 overflow-y-auto">
+        <h2 class="text-2xl font-semibold mb-4 text-[#2B3654]">AI Assessment Results</h2>
+        <app-triage-form [triageData]="triageData$ | async" class="w-full block"></app-triage-form>
       </div>
     </div>
   `,
   styles: [`
-    .dashboard-container {
-      display: flex;
-      width: 83vw;
-      height: 100vh;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #f1f5f9;
-      font-family: 'Inter', sans-serif;
-    }
-    .left-column {
-      flex: 1 1 50%;
-      padding: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
-      min-width: 0;
-    }
-    .right-column {
-      flex: 1 1 50%;
-      max-width: 800px;
-      padding: 32px;
-      overflow-y: auto;
-      min-width: 0;
+    :host {
+      display: block;
+      width: 100%;
+      height: 100%;
     }
   `]
 })

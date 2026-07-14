@@ -50,8 +50,7 @@ interface FilePreview {
       position: relative;
       width: 100%;
       height: 100%;
-      max-width: 400px;
-      height: 600px;
+      min-height: 500px;
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -64,14 +63,14 @@ interface FilePreview {
       border: 1px dashed rgba(56, 189, 248, 0.5);
     }
     .image-viewport:hover {
-      transform: translateY(-4px);
+      transform: translateY(-2px);
       box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.6);
     }
     .preview-container {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 12px;
-      padding: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      padding: 24px;
       padding-bottom: 140px; /* Space for overlay */
       height: 100%;
       overflow-y: auto;

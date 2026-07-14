@@ -12,242 +12,75 @@ import gsap from 'gsap';
   standalone: true,
   imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule],
   template: `
-    <div class="scribe-container" #container>
-      <div class="header">
-        <h1>EHR & Scribe Integration</h1>
-        <p>Paste ambient consultation transcripts below to automatically extract structured FHIR records using MedGemma AI Core.</p>
+    <div class="w-full h-full flex flex-col p-2" #container>
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold text-[#4A83F6] tracking-tight mb-2">EHR & Scribe Integration</h1>
+        <p class="text-[#8E9BB8] text-lg">Paste ambient consultation transcripts below to automatically extract structured FHIR records using MedGemma AI Core.</p>
       </div>
 
-      <div class="content-split">
-        <!-- Input Section -->
-        <div class="input-section" #inputSection>
-          <div class="card">
-            <h3>Consultation Transcript</h3>
-            <textarea 
-              [(ngModel)]="transcript" 
-              placeholder="e.g., Patient John Doe, 45, presents with mild hypertension. Prescribed Lisinopril 10mg daily."
-              rows="12">
-            </textarea>
-            
-            <button class="btn-process" (click)="processTranscript()" [disabled]="isLoading || !transcript.trim()">
-              <span *ngIf="!isLoading">Extract FHIR Data</span>
-              <span *ngIf="isLoading" class="spinner"></span>
-            </button>
-            
-            <div *ngIf="error" class="error-msg">
-              {{ error }}
-            </div>
+      <div class="flex flex-col md:flex-row gap-6 h-full min-h-[500px]">
+        
+        <!-- Input Section (Left) -->
+        <div class="flex-1 glass-panel p-6 flex flex-col" #inputSection>
+          <h3 class="text-xl font-semibold text-[#2B3654] mb-4">Consultation Transcript</h3>
+          <textarea 
+            [(ngModel)]="transcript" 
+            placeholder="e.g., Patient John Doe, 45, presents with mild hypertension. Prescribed Lisinopril 10mg daily."
+            class="flex-1 w-full bg-white/50 border border-white/60 rounded-xl p-4 text-[#2B3654] font-sans resize-none focus:outline-none focus:ring-2 focus:ring-[#4A83F6]/50 shadow-sm transition-all mb-4">
+          </textarea>
+          
+          <button class="w-full bg-gradient-to-r from-[#4A83F6] to-[#818cf8] text-white rounded-xl py-3.5 font-semibold text-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center" 
+                  (click)="processTranscript()" 
+                  [disabled]="isLoading || !transcript.trim()">
+            <span *ngIf="!isLoading">Extract FHIR Data</span>
+            <svg *ngIf="isLoading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </button>
+          
+          <div *ngIf="error" class="mt-4 p-3 bg-red-500/10 border-l-4 border-red-500 text-red-600 rounded-r-md">
+            {{ error }}
           </div>
         </div>
 
-        <!-- Output Section -->
-        <div class="output-section" #outputSection>
-          <div class="card fhir-card">
-            <div class="card-header">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <h3>Extracted FHIR R4 JSON</h3>
-                <div class="badge" *ngIf="fhirResult">Valid Resource</div>
+        <!-- Output Section (Right) -->
+        <div class="flex-1 glass-panel-blue p-6 flex flex-col bg-gradient-to-br from-[#4b84f3]/80 to-[#366ada]/90 text-white" #outputSection>
+          <div class="flex justify-between items-center mb-4">
+            <div class="flex items-center gap-3">
+              <h3 class="text-xl font-semibold">Extracted FHIR R4 JSON</h3>
+              <div *ngIf="fhirResult" class="bg-green-400/20 text-green-100 px-3 py-1 rounded-full text-xs font-bold border border-green-400/30">
+                Valid Resource
               </div>
-              <button *ngIf="fhirResult" type="button" mat-icon-button (click)="copyFhirJson()" class="copy-btn" title="Copy FHIR JSON" (mouseenter)="onHover($event)" (mouseleave)="onLeave($event)">
-                <mat-icon>content_copy</mat-icon>
-              </button>
             </div>
-            
-            <div class="code-container" *ngIf="fhirResult">
-              <pre><code>{{ fhirResult | json }}</code></pre>
-            </div>
-            
-            <div class="empty-state" *ngIf="!fhirResult && !isLoading">
-              <div class="icon">🧬</div>
-              <p>Awaiting transcript processing...</p>
-            </div>
+            <button *ngIf="fhirResult" type="button" mat-icon-button (click)="copyFhirJson()" class="text-white hover:text-blue-200 transition-colors" title="Copy FHIR JSON">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+          
+          <div *ngIf="fhirResult" class="flex-1 overflow-y-auto bg-[#0b1120]/50 p-4 rounded-xl border border-white/10 code-container">
+            <pre class="font-mono text-sm text-blue-100 whitespace-pre-wrap m-0"><code>{{ fhirResult | json }}</code></pre>
+          </div>
+          
+          <div *ngIf="!fhirResult && !isLoading" class="flex-1 flex flex-col justify-center items-center text-blue-100/60">
+            <div class="text-6xl mb-4 opacity-50">🧬</div>
+            <p>Awaiting transcript processing...</p>
+          </div>
 
-            <div class="loading-state" *ngIf="isLoading">
-              <div class="pulse-ring"></div>
-              <p>Reasoning with AI Core...</p>
-            </div>
+          <div *ngIf="isLoading" class="flex-1 flex flex-col justify-center items-center text-white">
+            <div class="w-16 h-16 rounded-full bg-white/20 animate-ping mb-6"></div>
+            <p class="font-medium animate-pulse">Reasoning with AI Core...</p>
           </div>
         </div>
+
       </div>
     </div>
   `,
   styles: [`
-    .scribe-container {
+    :host {
+      display: block;
       width: 100%;
-      height: 100vh;
-      padding: 32px;
-      overflow-y: auto;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #f1f5f9;
-      font-family: 'Inter', sans-serif;
-    }
-    .header {
-      margin-bottom: 32px;
-    }
-    .header h1 {
-      font-size: 2rem;
-      margin-bottom: 8px;
-      font-weight: 600;
-      color: #38bdf8;
-    }
-    .header p {
-      color: #94a3b8;
-      font-size: 1.1rem;
-    }
-    .content-split {
-      display: flex;
-      gap: 32px;
-      height: calc(100% - 120px);
-    }
-    .input-section, .output-section {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-    .card {
-      background: rgba(30, 41, 59, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
       height: 100%;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      backdrop-filter: blur(10px);
-    }
-    .card h3 {
-      margin-top: 0;
-      margin-bottom: 16px;
-      font-weight: 500;
-      color: #e2e8f0;
-      font-size: 1.25rem;
-    }
-    textarea {
-      flex: 1;
-      width: 100%;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      padding: 16px;
-      color: #f8fafc;
-      font-family: 'Inter', sans-serif;
-      font-size: 1rem;
-      resize: none;
-      margin-bottom: 16px;
-      transition: border-color 0.3s ease;
-    }
-    textarea:focus {
-      outline: none;
-      border-color: #38bdf8;
-    }
-    .btn-process {
-      background: linear-gradient(90deg, #38bdf8, #818cf8);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 14px 24px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);
-    }
-    .btn-process:hover:not([disabled]) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(56, 189, 248, 0.6);
-    }
-    .btn-process:active:not([disabled]) {
-      transform: translateY(0);
-    }
-    .btn-process[disabled] {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      border-top-color: white;
-      animation: spin 1s ease-in-out infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    .error-msg {
-      margin-top: 16px;
-      padding: 12px;
-      background: rgba(239, 68, 68, 0.1);
-      border-left: 4px solid #ef4444;
-      color: #fca5a5;
-      border-radius: 4px;
-    }
-    .fhir-card {
-      background: rgba(15, 23, 42, 0.8);
-    }
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-    .card-header h3 {
-      margin-bottom: 0;
-    }
-    .copy-btn {
-      color: #38bdf8;
-    }
-    .badge {
-      background: rgba(34, 197, 94, 0.2);
-      color: #4ade80;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      border: 1px solid rgba(34, 197, 94, 0.4);
-    }
-    .code-container {
-      flex: 1;
-      overflow-y: auto;
-      background: #0b1120;
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    pre {
-      margin: 0;
-      font-family: 'Fira Code', monospace;
-      font-size: 0.9rem;
-      color: #a5b4fc;
-      white-space: pre-wrap;
-    }
-    .empty-state, .loading-state {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      color: #64748b;
-    }
-    .empty-state .icon {
-      font-size: 4rem;
-      margin-bottom: 16px;
-      opacity: 0.5;
-    }
-    .pulse-ring {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: rgba(56, 189, 248, 0.2);
-      animation: pulse 1.5s infinite;
-      margin-bottom: 24px;
-    }
-    @keyframes pulse {
-      0% { transform: scale(0.8); opacity: 0.8; }
-      100% { transform: scale(1.5); opacity: 0; }
     }
   `]
 })
@@ -303,12 +136,10 @@ export class ScribeDashboardComponent implements AfterViewInit {
 
       const data = await response.json();
 
-      // Small artificial delay for animation impact if the response was too fast
       await new Promise(r => setTimeout(r, 600));
 
       this.fhirResult = data;
 
-      // Animate the result container appearing
       setTimeout(() => {
         const codeContainer = this.container.nativeElement.querySelector('.code-container');
         if (codeContainer) {
@@ -333,13 +164,5 @@ export class ScribeDashboardComponent implements AfterViewInit {
       this.clipboard.copy(JSON.stringify(this.fhirResult, null, 2));
       this.snackBar.open('FHIR JSON copied to clipboard.', 'Close', { duration: 3000, panelClass: ['success-snackbar'] });
     }
-  }
-
-  onHover(event: MouseEvent) {
-    gsap.to(event.currentTarget, { scale: 1.15, duration: 0.2, ease: 'power1.out' });
-  }
-
-  onLeave(event: MouseEvent) {
-    gsap.to(event.currentTarget, { scale: 1, duration: 0.2, ease: 'power1.in' });
   }
 }

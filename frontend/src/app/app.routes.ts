@@ -1,7 +1,10 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/triage', pathMatch: 'full' },
+  { 
+    path: '', 
+    loadComponent: () => import('./features/main-dashboard/main-dashboard.component').then(m => m.MainDashboardComponent) 
+  },
   { 
     path: 'triage', 
     loadComponent: () => import('./features/triage-dashboard/triage-dashboard.component').then(m => m.TriageDashboardComponent) 
@@ -13,5 +16,9 @@ export const routes: Routes = [
   { 
     path: 'live-avatar', 
     loadComponent: () => import('./features/avatar-consult/avatar-consult.component').then(m => m.AvatarConsultComponent) 
+  },
+  {
+    path: 'appointment-booking',
+    loadComponent: () => import('./features/appointment-booking/appointment-booking.component').then(m => m.AppointmentBookingComponent)
   }
 ];
